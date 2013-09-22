@@ -35,10 +35,14 @@ public class GCATChart extends Application {
         tSeries.setName("T Content");
 
         for (GCATWindow window : windows) {
-            gSeries.getData().add(new XYChart.Data<String, Number>(window.getWindowNumber(), window.getgPercent()));
-            cSeries.getData().add(new XYChart.Data<String, Number>(window.getWindowNumber(), window.getcPercent()));
-            aSeries.getData().add(new XYChart.Data<String, Number>(window.getWindowNumber(), window.getaPercent()));
-            tSeries.getData().add(new XYChart.Data<String, Number>(window.getWindowNumber(), window.gettPercent()));
+            gSeries.getData().add(
+                    new XYChart.Data<String, Number>(window.getWindowNumberAsString(), window.getgPercent()));
+            cSeries.getData().add(
+                    new XYChart.Data<String, Number>(window.getWindowNumberAsString(), window.getcPercent()));
+            aSeries.getData().add(
+                    new XYChart.Data<String, Number>(window.getWindowNumberAsString(), window.getaPercent()));
+            tSeries.getData().add(
+                    new XYChart.Data<String, Number>(window.getWindowNumberAsString(), window.gettPercent()));
         }
 
         Scene scene = new Scene(lineChart, 1200, 800);
@@ -50,7 +54,7 @@ public class GCATChart extends Application {
     }
 
     public static void main(String[] args) {
-        chr = new Chromosome("C:\\Users\\Foeclan\\Dropbox\\Genomics\\chr13.fa");
+        chr = new Chromosome(args[0]);
         chr.calcContent();
         chr.printGCPercent();
         chr.printAllPercents();

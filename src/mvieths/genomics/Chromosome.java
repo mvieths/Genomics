@@ -1,6 +1,7 @@
 package mvieths.genomics;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,7 +10,8 @@ public class Chromosome {
     /**
      * This class will take a FASTA chromosome file and provide helper methods for analyzing it
      */
-    String                       fileName;
+    String                       seqFileName;
+    String                       geneFileName;
     long                         gContent;             // Running count of guanine nucleotides
     long                         cContent;             // Running count of cytosine nucleotides
     long                         aContent;             // Running count of adenine nucleotides
@@ -17,8 +19,9 @@ public class Chromosome {
     long                         chromosomeLength;     // Length of G+C+A+T
     long                         totalChromosomeLength; // Length of G+C+A+T+N
     static ArrayList<GCATWindow> windows;              // Windows of set length in the chromosome and their g/c/a/t
+    static ArrayList<GeneWindow> genes;                // Locations of genes in this chromosome
 
-    public Chromosome(String filename) {
+    public Chromosome(String seqFile, String geneFile) {
         gContent = 0;
         cContent = 0;
         aContent = 0;
@@ -27,31 +30,25 @@ public class Chromosome {
         totalChromosomeLength = 0;
 
         try {
-            fileName = filename;
+            seqFileName = seqFile;
+            geneFileName = geneFile;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    /**
-     * @param args
-     */
-    // public static void main(String[] args) {
-    // Chromosome chr = new Chromosome(args[0]);
-    // chr.calcContent();
-    // chr.printGCPercent();
-    // chr.printAllPercents();
-    // chr.calcContentByWindow(200);
-    // System.out.println("There are " + windows.size() + " windows");
-    // }
+    public Chromosome(String seqFile) {
+        this(seqFile, "");
+    }
 
     /**
      * Calculates the G, C, A and T content of the chromosome
      */
     void calcContent() {
+        System.out.println("Calculating nucleotide content...");
         String line;
         try {
-            BufferedReader reader = new BufferedReader(new FileReader(fileName));
+            BufferedReader reader = new BufferedReader(new FileReader(seqFileName));
 
             while ((line = reader.readLine()) != null) {
                 countLine(line);
@@ -63,17 +60,14 @@ public class Chromosome {
         }
     }
 
-    public long getChromosomeLength() {
-        return chromosomeLength;
-    }
-
     /**
      * Calculates the G, C, A and T content in increments of the specified window size
      */
     void calcContentByWindow(long windowSize) {
+        System.out.println("Building nucleotide content list...");
         try {
             windows = new ArrayList<GCATWindow>();
-            FileReader fileReader = new FileReader(fileName);
+            FileReader fileReader = new FileReader(seqFileName);
             BufferedReader lineReader = new BufferedReader(fileReader);
             lineReader.readLine(); // Get rid of the first line, which is a comment
             GCATWindow window;
@@ -120,24 +114,53 @@ public class Chromosome {
         }
     }
 
-    void printGCPercent() {
-        double gcPercent = (((double) gContent + (double) cContent) / chromosomeLength) * 100;
-
-        System.out.println("G = " + gContent + " C = " + cContent + " Total Length = " + chromosomeLength
-                + "\nGC Percent = " + gcPercent);
+    /**
+     * Processes the geneFile for genes and stores their name, starting and ending positions in an ArrayList of
+     * GeneWindow objects
+     */
+    void calcGenes() {
+        System.out.println("Building gene list...");
+        FileReader fileReader;
+        try {
+            if (geneFileName.equals("")) {
+                System.out.println("No gene file specified");
+                return;
+            } else {
+                fileReader = new FileReader(geneFileName);
+                BufferedReader lineReader = new BufferedReader(fileReader);
+                String line;
+                genes = new ArrayList<GeneWindow>();
+                GeneWindow gene;
+                while ((line = lineReader.readLine()) != null) {
+                    String[] tokens = line.split("\t");
+                    if (tokens[5].equals("'+'")) {
+                        gene = new GeneWindow(Long.parseLong(tokens[2]), Long.parseLong(tokens[3]), tokens[0]);
+                    } else {
+                        // Change this to take into account counting from the end of the chromosome
+                        long start = totalChromosomeLength - Long.parseLong(tokens[3]);
+                        long end = totalChromosomeLength - Long.parseLong(tokens[2]);
+                        gene = new GeneWindow(start, end, tokens[0]);
+                    }
+                    genes.add(gene);
+                }
+            }
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
-    void printAllPercents() {
-        double gPercent = ((double) gContent / chromosomeLength) * 100;
-        double cPercent = ((double) cContent / chromosomeLength) * 100;
-        double aPercent = ((double) aContent / chromosomeLength) * 100;
-        double tPercent = ((double) tContent / chromosomeLength) * 100;
-        double totalPercent = gPercent + cPercent + aPercent + tPercent;
-        System.out.println("gPercent = " + gPercent + "\ncPercent = " + cPercent + "\naPercent = " + aPercent
-                + "\ntPercent = " + tPercent + "\nTotal Percent = " + totalPercent);
-
-    }
-
+    /**
+     * Counts the G/C/A/T content in a given line of text. Skips anything that's not a G/C/A/T, and comment lines (those
+     * starting with a >). Case insensitive. Stores the content in the global variables gContent, cContent, aContent,
+     * and tContent, with the total stored in chromosomeLength
+     * 
+     * @param line
+     *            A line of text to analyze
+     */
     private void countLine(String line) {
         if (line.startsWith(">")) {
             // Comment, ignore it
@@ -167,11 +190,63 @@ public class Chromosome {
         }
     }
 
+    /**
+     * Print the percentage of G+C nucleotides in this chromosome
+     */
+    void printGCPercent() {
+        double gcPercent = (((double) gContent + (double) cContent) / chromosomeLength) * 100;
+
+        System.out.println("G = " + gContent + " C = " + cContent + " Total Length = " + chromosomeLength
+                + "\nGC Percent = " + gcPercent);
+    }
+
+    /**
+     * Print the percentage of G/C/A/T nucleotides in this chromosome
+     */
+    void printAllPercents() {
+        double gPercent = ((double) gContent / chromosomeLength) * 100;
+        double cPercent = ((double) cContent / chromosomeLength) * 100;
+        double aPercent = ((double) aContent / chromosomeLength) * 100;
+        double tPercent = ((double) tContent / chromosomeLength) * 100;
+        double totalPercent = gPercent + cPercent + aPercent + tPercent;
+        System.out.println("gPercent = " + gPercent + "\ncPercent = " + cPercent + "\naPercent = " + aPercent
+                + "\ntPercent = " + tPercent + "\nTotal Percent = " + totalPercent);
+
+    }
+
+    /**
+     * Provides the number of G+C+A+T nucleotides. Note that 'N' or other values are not included in this value
+     * 
+     * @return Number of G+C+A+T nucleotides
+     */
+    public long getChromosomeLength() {
+        return chromosomeLength;
+    }
+
+    /**
+     * Provides the list of G/C/A/T windows in this chromosome
+     * 
+     * @return An ArrayList of the G/C/A/T statistics for this chromosome
+     */
     public ArrayList<GCATWindow> getWindows() {
         return windows;
     }
+
+    /**
+     * Provides the list of genes in this chromosome and their positions
+     * 
+     * @return Provides an ArrayList of GeneWindow objects in this chromosome and their positions
+     */
+    public ArrayList<GeneWindow> getGenes() {
+        return genes;
+    }
 }
 
+/**
+ * 
+ * @author Foeclan
+ * 
+ */
 class GCATWindow {
     private long       gContent;
     private long       cContent;
@@ -272,10 +347,82 @@ class GCATWindow {
         return (long) percent;
     }
 
+    public long getGCContent() {
+        return gContent + cContent;
+    }
+
+    public double getGCPercent() {
+        long gcContent = gContent + cContent;
+        double gcPercent = ((double) gcContent / total) * 100;
+
+        return gcPercent;
+    }
+
     /**
      * @return the windowNumber
      */
-    public String getWindowNumber() {
+    public String getWindowNumberAsString() {
         return "" + windowNumber;
+    }
+
+    public long getWindowNumber() {
+        return windowNumber;
+    }
+}
+
+class GeneWindow {
+    private long   start;
+    private long   end;
+    private String name;
+
+    public GeneWindow(long start, long end, String name) {
+        setStart(start);
+        setEnd(end);
+        setName(name);
+    }
+
+    /**
+     * @param start
+     *            the start to set
+     */
+    public void setStart(long start) {
+        this.start = start;
+    }
+
+    /**
+     * @return the start
+     */
+    public long getStart() {
+        return start;
+    }
+
+    /**
+     * @param end
+     *            the end to set
+     */
+    public void setEnd(long end) {
+        this.end = end;
+    }
+
+    /**
+     * @return the end
+     */
+    public long getEnd() {
+        return end;
+    }
+
+    /**
+     * @param name
+     *            the name to set
+     */
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    /**
+     * @return the name
+     */
+    public String getName() {
+        return name;
     }
 }
