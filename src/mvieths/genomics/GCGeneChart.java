@@ -17,20 +17,21 @@ public class GCGeneChart extends Application {
 
     @Override
     public void start(Stage stage) {
-        stage.setTitle("G/C/A/T Percentages in Chromosome 13");
-        final NumberAxis xAxis = new NumberAxis();
+        stage.setTitle("Nucleotide Percentages in Chromosome 13");
+        final NumberAxis xAxis = new NumberAxis(46000000, 47000000, 100000);
         final NumberAxis yAxis = new NumberAxis(0, 75.0, 5.0);
         xAxis.setLabel("Nucleotide Position (Window Size = " + window + ")");
         yAxis.setLabel("Percentage");
 
         final LineChart<Number, Number> lineChart = new LineChart<Number, Number>(xAxis, yAxis);
-        lineChart.setTitle("G/C/A/T Percentages in Chromosome 13");
+        lineChart.setTitle("Nucleotide Percentages in Chromosome 13");
 
         XYChart.Series<Number, Number> gcSeries = new XYChart.Series<Number, Number>();
         gcSeries.setName("GC Content");
 
         for (GCATWindow window : windows) {
-            gcSeries.getData().add(new XYChart.Data<Number, Number>(window.getWindowNumber(), window.getGCPercent()));
+            gcSeries.getData().add(
+                    new XYChart.Data<Number, Number>(window.getWindowNumber(), (long) window.getGCPercent()));
         }
 
         lineChart.getData().add(gcSeries);
@@ -56,11 +57,9 @@ public class GCGeneChart extends Application {
         chr = new Chromosome(args[0], args[1]);
         chr.calcContent();
         chr.calcGenes();
-        // chr.printGCPercent();
-        // chr.printAllPercents();
         long chrLength = chr.getChromosomeLength();
         // We want a readable chart, so limit it to 50 data points
-        window = chrLength / 100;
+        window = chrLength / 1000;
         chr.calcContentByWindow(window);
 
         windows = chr.getWindows();
