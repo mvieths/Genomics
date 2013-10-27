@@ -6,7 +6,7 @@ package mvieths.HMM;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.ArrayList;
 
 /**
  * @author Foeclan
@@ -14,23 +14,25 @@ import java.util.HashMap;
  */
 public class Viterbi {
 
-    static double     p                  = 0.98;
-    static double     q                  = 0.999;
+    final static double p                  = 0.98;
+    final static double q                  = 0.999;
+
     /*
      * A + indicates a probability within a CpG island, - indicates out of CpG island
      * 
      * e.g. A+ to A- represents a transition from an A inside a CpG island to an A outside of a CpG island
      */
-    String[]          states             =
-                                         { "A+", "C+", "G+", "T+", "A-", "C-", "G-", "T-" };
-    String[]          observations       =
-                                         { "-", "+" };                                              // In or out of a CpG island
-    double[]          initialProbability =
-                                         { 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8, 1 / 8 };
+    static String[]     states             =
+                                           { "A+", "C+", "G+", "T+", "A-", "C-", "G-", "T-" };
 
-    static double[][] transitionMatrix   =
-                                         {
-                                         // A+ C+ G+ T+ A- C- G- T-
+    static double[]     initialProbability =
+                                           { 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0,
+                                           1.0 / 8.0,
+                                           1.0 / 8.0 };
+
+    static double[][]   transitionMatrix   =
+                                           {
+                                           // A+ C+ G+ T+ A- C- G- T-
             { 0.180 * p, 0.274 * p, 0.426 * p, 0.120 * p, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4 }, // A+
             { 0.171 * p, 0.368 * p, 0.274 * p, 0.188 * p, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4 }, // C+
             { 0.161 * p, 0.339 * p, 0.375 * p, 0.125 * p, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4, (1 - p) / 4 }, // G+
@@ -39,7 +41,20 @@ public class Viterbi {
             { (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, 0.322 * q, 0.298 * q, 0.078 * q, 0.302 * q }, // C-
             { (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, 0.248 * q, 0.246 * q, 0.298 * q, 0.208 * q }, // G-
             { (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, (1 - q) / 4, 0.177 * q, 0.239 * q, 0.292 * q, 0.292 * q } // T-
-                                         };
+                                           };
+
+    // Emission probabilities are 1 when it's the same base, 0 otherwise
+    static double[][]   emissionMatrix     =
+                                           {
+                                           { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 },
+                                           { 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 },
+                                           { 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0 },
+                                           { 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 },
+                                           { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 },
+                                           { 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 },
+                                           { 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0 },
+                                           { 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 }
+                                           };
 
     /**
      * @param args
@@ -53,128 +68,44 @@ public class Viterbi {
 
         String toySequence1 = parseFASTA(dataDirectory + toySample1);
         System.out.println("sequence is " + toySequence1.length() + " long");
-        findIslands(toySequence1);
+        forwardViterbi(toySequence1);
     }
 
     /**
-     * Parse through a provided String looking for CpG islands 
-     * Note the start and end positions of the island 
-     * Note any genes which occur within 500 bp of the end position of the island
+     * 
      */
-    public static void findIslands(String sequence) {
-        Probability previous;
-        boolean inIsland = false;
-        char previousBase;
-        char nextBase;
-        double previousProbability = 1.0 / 8.0;
-        System.out.println("Probability is " + previousProbability);
+    // forwardViterbi(observations, states, start_probability, transition_probability, emission_probability)
+    private static void forwardViterbi(String sequence) {
+        // Keep track of the path and probability for each state
+        // Initialize based on initialProbability matrix
+        // This will serve the Ptr function in the algorithm
+        ViterbiNode[] history = new ViterbiNode[states.length];
+        for (int i = 0; i < history.length; i++) {
+            history[i] = new ViterbiNode(initialProbability[i], i);
+            history[i].setArgMax(initialProbability[i]);
+        }
 
-        HashMap<Integer, Boolean> islandMap = new HashMap<Integer, Boolean>();
+        // for each observation (nucleotide), calculate its probability and store it in the appropriate ViterbiNode
+        for (int nucleotide = 0; nucleotide < sequence.length(); nucleotide++) {
+            char observation = sequence.charAt(nucleotide);
 
-        for (int i = 0; i < sequence.length() - 1; i++) {
-            previousBase = sequence.charAt(i);
-            nextBase = sequence.charAt(i + 1);
-            previous = getMaxProbability(previousBase, nextBase, inIsland);
-            if (previous.isInIsland() != inIsland) {
-                // We entered or left an island
-                inIsland = previous.isInIsland();
-                islandMap.put(i, inIsland);
-                if (inIsland) {
-                    System.out.println("Entered an island at " + i);
-                }
-                else {
-                    System.out.println("Left an island at " + i);
+            double max = 0.0;
+
+            // Allocate a new array of nodes for the current probabilities
+            ViterbiNode[] current = new ViterbiNode[states.length];
+            // Generate probabilities for all of the current states
+            for (int j = 0; j < history.length; j++) {
+                // Iterate through the previous states
+                for (int k = 0; k < history.length; k++) {
+                    // Get the previous probability
+                    double prevProb = history[k].getTotalProbability();
+                    ArrayList<Integer> pastStates = history[k].getPath();
+                    // Use log to avoid underruns
+                    double probability = Math.log(transitionMatrix[k][j] * emissionMatrix[k][nucleotide]);
+
                 }
             }
-            //            System.out.println("prevProbability is " + previousProbability);
-            //            System.out.println("Probability is " + previous.getProbability());
-
-            previousProbability *= previous.getProbability();
         }
-
-        System.out.println("Probability is " + previousProbability);
-    }
-
-    public static Probability getMaxProbability(char previous, char next, boolean inIsland) {
-        Probability probability;
-        double mostLikely = 0.0;
-        boolean toIsland = false;
-
-        /*
-         * Need 4 probabilities:
-         * 
-         * Previous base is in island, next base is in island
-         * 
-         * Previous base is in island, next base is not
-         * 
-         * Previous base is not in an island, next base is
-         * 
-         * Previous base is not in an island, nor is the next
-         */
-        double curProbability;
-        curProbability = getProbability(previous, inIsland, next, true);
-        if (curProbability > mostLikely) {
-            mostLikely = curProbability;
-            toIsland = true;
-        }
-
-        curProbability = getProbability(previous, inIsland, next, false);
-        if (curProbability > mostLikely) {
-            mostLikely = curProbability;
-            toIsland = false;
-        }
-
-        probability = new Probability(mostLikely, toIsland);
-
-        return probability;
-    }
-
-    public static double getProbability(char previous, boolean prevInIsland, char next, boolean nextInIsland) {
-        double probability = 0.0;
-        int previousIndex = 0;
-        int nextIndex = 0;
-        int notInIslandMod = 4; // Add 4 to the index if it's not in an island
-
-        switch (previous) {
-            case 'A':
-                previousIndex = 0;
-                break;
-            case 'C':
-                previousIndex = 1;
-                break;
-            case 'G':
-                previousIndex = 2;
-                break;
-            case 'T':
-                previousIndex = 3;
-                break;
-        }
-        if (!prevInIsland) {
-            previousIndex += notInIslandMod;
-        }
-
-        switch (next) {
-            case 'A':
-                nextIndex = 0;
-                break;
-            case 'C':
-                nextIndex = 1;
-                break;
-            case 'G':
-                nextIndex = 2;
-                break;
-            case 'T':
-                nextIndex = 3;
-                break;
-        }
-        if (!nextInIsland) {
-            nextIndex += notInIslandMod;
-        }
-
-        probability = transitionMatrix[previousIndex][nextIndex];
-        //        System.out.println("Probability of going from " + previous + "(" + prevInIsland + ") to " + next + "("
-        //                + nextInIsland + ") is " + probability);
-        return probability;
 
     }
 
@@ -209,42 +140,61 @@ public class Viterbi {
     }
 }
 
-class Probability {
-    private double  probability;
-    private boolean inIsland;
+class ViterbiNode {
+    double             totalProbability;
+    double             argMax;
+    ArrayList<Integer> path;
 
-    public Probability(double prob, boolean inIsland) {
-        setProbability(prob);
-        setInIsland(inIsland);
+    public ViterbiNode(double probability, int state) {
+        setTotalProbability(probability);
+        path = new ArrayList<Integer>();
+        path.add(state);
     }
 
     /**
      * @return the probability
      */
-    public double getProbability() {
-        return probability;
+    public double getTotalProbability() {
+        return totalProbability;
     }
 
     /**
-     * @param probability
-     *            the probability to set
+     * @param probability the probability to set
      */
-    public void setProbability(double probability) {
-        this.probability = probability;
+    public void setTotalProbability(double probability) {
+        // Since the probabilities will get very small, store the log
+        this.totalProbability = Math.log(probability);
     }
 
     /**
-    * @return the inIsland
-    */
-    public boolean isInIsland() {
-        return inIsland;
-    }
-
-    /**
-     * @param inIsland
-     *            the inIsland to set
+     * @return the argMax
      */
-    public void setInIsland(boolean inIsland) {
-        this.inIsland = inIsland;
+    public double getArgMax() {
+        return argMax;
+    }
+
+    /**
+     * @param argMax the argMax to set
+     */
+    public void setArgMax(double argMax) {
+        this.argMax = argMax;
+    }
+
+    /**
+     * @return the path
+     */
+    public ArrayList<Integer> getPath() {
+        return path;
+    }
+
+    /**
+     * @param path the path to set
+     */
+    public void setPath(ArrayList<Integer> path) {
+        this.path = path;
+    }
+
+    public void addToPath(int state) {
+        path.add(state);
     }
 }
