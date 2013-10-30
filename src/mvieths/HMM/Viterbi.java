@@ -6,6 +6,7 @@ package mvieths.HMM;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
 
@@ -18,8 +19,12 @@ public class Viterbi {
     // Starting values for p and q
     // final static double p = 0.98;
     // final static double q = 0.999;
+    // Values someone posted on the forum
     final static double                p                  = 0.9999;
     final static double                q                  = 0.95;
+    // Values I'm playing with
+    // final static double p = 0.999999;
+    // final static double q = 0.94;
 
     static char[]                      observations       =
                                                               { 'A', 'C', 'G', 'T' };
@@ -114,6 +119,7 @@ public class Viterbi {
                 int maxState = -1;
                 for (int k = 0; k < states.length; k++) {
                     double prob = Double.NEGATIVE_INFINITY;
+                    // Math.log(0) comes out as negative infinity, so only get the log and sum the probability if it's non-zero
                     if (emissionMatrix[obsMap.get(thisChar)][k] != 0.0) {
                         prob = probabilityTable[k][seqPos - 1] + Math.log(transitionMatrix[k][state]) + Math.log(emissionMatrix[obsMap.get(thisChar)][k]);
                     }
@@ -125,12 +131,9 @@ public class Viterbi {
                 }
 
                 probabilityTable[state][seqPos] = maxProbability;
-
                 stateTable[state][seqPos] = maxState;
             }
         }
-
-        System.out.println("I'm just here for a breakpoint");
 
         // Now that we've populated the tables, backtrace through them
         // Find the greatest probability and its state in the last entry
@@ -154,22 +157,37 @@ public class Viterbi {
 
         System.out.println("There are " + backtrace.size() + " entries on the stack");
 
+        ArrayList<CpGIsland> islands = new ArrayList<CpGIsland>();
+        CpGIsland island = new CpGIsland();
+
+        // Initialize whether we're in an island based on the state at the top of the stack
+        // States < 4 are in a CpG island, >= 4 are not
         int state = backtrace.pop();
         boolean inIsland = (state < 4);
+        if (inIsland) {
+            island.setStart(0);
+        }
         int i = 1;
         while (!backtrace.isEmpty()) {
             state = backtrace.pop();
+
             if (inIsland && state > 3) {
                 inIsland = false;
-                System.out.println("Left island at " + i);
+                island.setEnd(i);
+                islands.add(island);
+                island = new CpGIsland();
+                // System.out.println("Left island at " + i);
             } else if (!inIsland && state < 4) {
                 inIsland = true;
-                System.out.println("Entered island at " + i);
+                island.setStart(i);
+                // System.out.println("Entered island at " + i);
             }
             i++;
-
         }
 
+        for (CpGIsland next : islands) {
+            System.out.println("There's an island between " + next.getStart() + " and " + next.getEnd());
+        }
     }
 
     /**
@@ -197,5 +215,40 @@ public class Viterbi {
         }
 
         return sequence;
+    }
+}
+
+class CpGIsland {
+    private int start;
+    private int end;
+
+    /**
+     * @return the start
+     */
+    public int getStart() {
+        return start;
+    }
+
+    /**
+     * @param start
+     *            the start to set
+     */
+    public void setStart(int start) {
+        this.start = start;
+    }
+
+    /**
+     * @return the end
+     */
+    public int getEnd() {
+        return end;
+    }
+
+    /**
+     * @param end
+     *            the end to set
+     */
+    public void setEnd(int end) {
+        this.end = end;
     }
 }
