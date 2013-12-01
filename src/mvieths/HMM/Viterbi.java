@@ -4,15 +4,15 @@
 package mvieths.HMM;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Stack;
 
 /**
- * @author Foeclan
+ * @author MVieths viet0013@umn.edu
  * 
  */
 public class Viterbi {
@@ -20,12 +20,9 @@ public class Viterbi {
     // Starting values for p and q
     // final static double p = 0.98;
     // final static double q = 0.999;
-    // Values someone posted on the forum
-    final static double                p                  = 0.9999;
-    final static double                q                  = 0.95;
     // Values I'm playing with
-    // final static double p = 0.999999;
-    // final static double q = 0.94;
+    final static double                p                  = 0.99999999;
+    final static double                q                  = 0.94;
 
     static char[]                      observations       =
                                                           { 'A', 'C', 'G', 'T', 'N' };
@@ -71,8 +68,6 @@ public class Viterbi {
                                                           { 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0,
                                                           1.0 / 8.0, 1.0 / 8.0, 1.0 / 8.0 };
 
-    static long                        startTime;
-
     /**
      * @param args
      */
@@ -89,15 +84,22 @@ public class Viterbi {
             obsMap.put(observations[i], i);
         }
 
+        String chr = "Chr21.txt";
         String filename = args[0];
-        startTime = Calendar.getInstance().getTimeInMillis();
 
-        String toySequence1 = parseFASTA(filename);
-        System.out.println("sequence is " + toySequence1.length() + " long");
-        viterbinate(toySequence1);
+        String sequence = parseFASTA(filename);
+        System.out.println("sequence is " + sequence.length() + " bases long");
+        ArrayList<CpGIsland> islands = viterbinate(sequence);
+
+        File inFile = new File(filename);
+        File parentDir = inFile.getParentFile();
+        File chrFile = new File(parentDir, chr);
+        HashMap<Integer, String> forwardAnnotations = readAnnotations(chrFile);
+
+        annotateIslands(islands, forwardAnnotations);
     }
 
-    public static void viterbinate(String sequence) {
+    public static ArrayList<CpGIsland> viterbinate(String sequence) {
         double[][] probabilityTable = new double[states.length][sequence.length()];
         int[][] stateTable = new int[states.length][sequence.length()];
 
@@ -168,8 +170,6 @@ public class Viterbi {
             backtrace.push(stateTable[maxState][i]);
         }
 
-        System.out.println("There are " + backtrace.size() + " entries on the stack");
-
         ArrayList<CpGIsland> islands = new ArrayList<CpGIsland>();
         CpGIsland island = new CpGIsland();
 
@@ -181,30 +181,52 @@ public class Viterbi {
             island.setStart(0);
         }
         int i = 1;
+        // work through the stack populating CpGIslands as we find them
         while (!backtrace.isEmpty()) {
             state = backtrace.pop();
 
+            // Make note any time we change state (in/out of CpG island)
             if (inIsland && state > 3) {
                 inIsland = false;
                 island.setEnd(i);
                 islands.add(island);
                 island = new CpGIsland();
-                // System.out.println("Left island at " + i);
             }
             else if (!inIsland && state < 4) {
                 inIsland = true;
                 island.setStart(i);
-                // System.out.println("Entered island at " + i);
             }
             i++;
         }
 
-        //        for (CpGIsland next : islands) {
-        //            System.out.println("There's an island between " + next.getStart() + " and " + next.getEnd());
-        //        }
-        System.out.println("Total islands: " + islands.size());
-        long endTime = Calendar.getInstance().getTimeInMillis();
-        System.out.println("Finished in " + (endTime - startTime) / 1000 + " seconds");
+        return islands;
+    }
+
+    /**
+     * Line up the islands we found with our annotation file to determine if any of them fall within 500 bp of a gene.
+     * Ignore any <200bp in length.
+     * 
+     * @param islands
+     * @param forwardAnnotations
+     */
+    private static void annotateIslands(ArrayList<CpGIsland> islands, HashMap<Integer, String> forwardAnnotations) {
+        int window = 500;
+        int i = 0;
+        for (CpGIsland next : islands) {
+            if (next.getLength() > 200) {
+                int forwardWindowEnd = next.getEnd() + window;
+                for (Integer key : forwardAnnotations.keySet()) {
+                    if ((key > next.getStart()) && (key < forwardWindowEnd)) {
+                        // This gene is within 500bp of the CpG window (start or end)
+                        System.out.printf("CpG island %10d bp (%d-%d) %s\n", next.getLength(), next.getStart(),
+                                next.getEnd(), forwardAnnotations.get(key));
+                        i++;
+                    }
+                }
+            }
+        }
+        System.out.println("Total CpG islands found: " + islands.size() + " ; " + i + " out of " + islands.size()
+                + " are followed by a coding region");
     }
 
     /**
@@ -234,11 +256,46 @@ public class Viterbi {
 
         return sequence;
     }
+
+    /**
+     * Parse the annotation file and return any from the forward strand.
+     * 
+     * @param chrFile
+     * @return
+     */
+    private static HashMap<Integer, String> readAnnotations(File chrFile) {
+        HashMap<Integer, String> annotations = new HashMap<Integer, String>();
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(chrFile));
+
+            // Read the annotations from the file
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] columns = line.split("\\s+");
+                // Only look at forward strand
+                if (columns[2].equals("+")) {
+                    int startPosition = Integer.parseInt(columns[0]);
+                    annotations.put(startPosition, columns[3]);
+                }
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        return annotations;
+    }
 }
 
+/**
+ * Store the start and end of a CpG island
+ * @author MVieths
+ *
+ */
 class CpGIsland {
-    private int start;
-    private int end;
+    // Since this particular dataset starts at 43507093, include that as an offset for our coordinates
+    private final int offset = 43507093;
+    private int       start;
+    private int       end;
 
     /**
      * @return the start
@@ -252,7 +309,7 @@ class CpGIsland {
      *            the start to set
      */
     public void setStart(int start) {
-        this.start = start;
+        this.start = start + offset;
     }
 
     /**
@@ -267,6 +324,14 @@ class CpGIsland {
      *            the end to set
      */
     public void setEnd(int end) {
-        this.end = end;
+        this.end = end + offset;
+    }
+
+    /**
+     * Return the length in bases of this island
+     * @return
+     */
+    public int getLength() {
+        return end - start;
     }
 }
