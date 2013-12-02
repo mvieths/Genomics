@@ -29,11 +29,25 @@ public class DistanceMatrix {
 		BufferedReader reader = null;
 		File parentDir = null;
 		AlignedSegment[][] scoringMatrix = null;
+		String inputFile = "";
+		String outputFile1 = "";
+		String outputFile2 = "";
+
 		try {
-			if (args.length == 0) {
+		} catch (ArrayIndexOutOfBoundsException e) {
+			printUsage();
+		}
+
+		try {
+			if (args.length != 3) {
 				printUsage();
+				System.exit(1);
 			} else {
-				File inFile = new File(args[0]);
+				inputFile = args[0];
+				outputFile1 = args[1];
+				outputFile2 = args[2];
+
+				File inFile = new File(inputFile);
 				parentDir = inFile.getParentFile();
 				reader = new BufferedReader(new FileReader(args[0]));
 			}
@@ -64,33 +78,52 @@ public class DistanceMatrix {
 				System.exit(1);
 			}
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		FileWriter fileWriter;
+		FileWriter fileWriter1, fileWriter2;
 		try {
-			String outfile1 = parentDir.getPath() + "\\" + "d1.txt";
-			fileWriter = new FileWriter(outfile1);
-			BufferedWriter writer = new BufferedWriter(fileWriter);
+			String outfile1 = parentDir.getPath() + "\\" + outputFile1;
+			String outfile2 = parentDir.getPath() + "\\" + outputFile2;
+			fileWriter1 = new FileWriter(outfile1);
+			fileWriter2 = new FileWriter(outfile2);
+			BufferedWriter writer1 = new BufferedWriter(fileWriter1);
+			BufferedWriter writer2 = new BufferedWriter(fileWriter2);
 			for (int i = 0; i < scoringMatrix.length; i++) {
-				StringBuilder line = new StringBuilder();
+				StringBuilder d1Line = new StringBuilder();
+				StringBuilder d2Line = new StringBuilder();
+
 				for (int j = 0; j < scoringMatrix[0].length; j++) {
-					double p = 1 - scoringMatrix[i][j].getAlignmentPercent();
-					line.append(p + " ");
+					double distance = 1 - scoringMatrix[i][j].getAlignmentPercent();
+					d1Line.append(distance + " ");
+					d2Line.append(jukesCantor(distance) + " ");
 					// System.out.printf("[%.5f]", p);
 				}
-				fileWriter.append(line + "\r\n");
+				fileWriter1.append(d1Line + "\r\n");
+				fileWriter2.append(d2Line + "\r\n");
 				// System.out.println();
 			}
-			writer.close();
+			writer1.close();
+			writer2.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
+	}
+
+	/**
+	 * Perform Jukes-Cantor correction on the provided distance
+	 * 
+	 * @param distance
+	 * @return corrected distance
+	 */
+	public static double jukesCantor(double distance) {
+		// -(3/4) * ln(1-(4/3)*distance)
+		double correctedDistance = (-3.0 / 4.0) * Math.log(1 - ((4.0 / 3.0) * distance));
+
+		return correctedDistance;
 	}
 
 	private static void printUsage() {
