@@ -35,7 +35,9 @@ public class NeighborJoin {
 			inputFileName1 = args[0];
 			inputFileName2 = args[1];
 			initMatrices(inputFileName1, inputFileName2);
-			initTree();
+			rootNode = initTree(matrix1);
+
+			System.out.println();
 		}
 
 	}
@@ -44,7 +46,6 @@ public class NeighborJoin {
 		try {
 			File inFile1 = new File(inputFileName1);
 			File inFile2 = new File(inputFileName2);
-			File parentDir = inFile1.getParentFile();
 			BufferedReader reader1 = new BufferedReader(new FileReader(inFile1));
 			BufferedReader reader2 = new BufferedReader(new FileReader(inFile2));
 
@@ -72,10 +73,10 @@ public class NeighborJoin {
 				matrix2.add(doubleValues);
 			}
 
-			System.out.println("Matrix 1");
+			// System.out.println("Matrix 1");
 			// printMatrix(matrix1);
 
-			System.out.println("\nMatrix2");
+			// System.out.println("\nMatrix 2");
 			// printMatrix(matrix2);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -83,13 +84,14 @@ public class NeighborJoin {
 
 	}
 
-	public static void initTree(double[][] matrix) {
-		rootNode = new PhyloNode();
-		for (int i = 0; i < files.length; i++) {
+	public static PhyloNode initTree(ArrayList<ArrayList<Double>> matrix) {
+		PhyloNode newRoot = new PhyloNode();
+		for (int i = 0; i < matrix.size(); i++) {
 			PhyloNode node = new PhyloNode(i, files[i]);
-			node.setDistances(matrix[i]);
-			rootNode.add(new PhyloNode(i, files[i]));
+			node.setDistances(matrix.get(i));
+			newRoot.add(node);
 		}
+		return newRoot;
 	}
 
 	public static void printUsage() {
@@ -116,10 +118,12 @@ public class NeighborJoin {
 }
 
 class PhyloNode {
-	static ArrayList<PhyloNode> children;
-	static int nodeNumber;
-	static String nodeName;
+	ArrayList<PhyloNode> children;
+	int nodeNumber;
+	int nextNodeNumber = 0;
+	String nodeName;
 	ArrayList<Double> distances;
+	final static double BIG_DISTANCE = 10000000.0;
 
 	public PhyloNode() {
 		children = new ArrayList<PhyloNode>();
@@ -149,12 +153,10 @@ class PhyloNode {
 		return children;
 	}
 
-	public void setDistances(double[] distances) {
+	public void setDistances(ArrayList<Double> distances) {
 		ArrayList<Double> d = new ArrayList<Double>();
-		for (int i = 0; i < distances.length; i++) {
-			if (distances[i] != 0.0) {
-				d.add(distances[i]);
-			}
+		for (int i = 0; i < distances.size(); i++) {
+			d.add(distances.get(i));
 		}
 		this.distances = d;
 	}
@@ -180,24 +182,34 @@ class PhyloNode {
 		return total;
 	}
 
-	public PhyloNode getShortest() {
+	// Take the child nodes with the two shortest distances and create a subnode containing them
+	// If there are not two short nodes left, it won't create a subnode
+	public void mergeShortest() {
 		// Examine all the children
-		double shortest = 0;
-		for (Double distance : distances) {
-			shortest += distance;
-		}
-
-		int first = -1;
-		int second = -1;
-		for (int i = 0; i < distances.size(); i++) {
-			for (int j = i; j < distances.size(); j++) {
-				double distance = distances.get(i) + distances.get(j);
-				if (distance < shortest) {
-					first = i;
-					second = j;
-				}
+		PhyloNode short1 = null;
+		PhyloNode short2 = null;
+		double shortest = BIG_DISTANCE;
+		double nextShortest = BIG_DISTANCE;
+		for (PhyloNode child : children) {
+			double nodeDistance = child.getS();
+			if (nodeDistance <= shortest) {
+				nextShortest = shortest;
+				shortest = nodeDistance;
+				short2 = short1;
+				short1 = child;
 			}
 		}
 
+		// If nextShortest is unchanged, we didn't find 2 short distances, so don't create a subnode
+		if (nextShortest != BIG_DISTANCE) {
+			// Create a new node containing the two shortest
+			PhyloNode newNode = new PhyloNode();
+			newNode.add(short1);
+			newNode.add(short2);
+			children.remove(short1);
+			children.remove(short2);
+
+			newNode.setName("U" + nextNodeNumber++);
+		}
 	}
 }
