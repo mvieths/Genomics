@@ -61,9 +61,7 @@ public class NeighborJoin {
      */
     public static void main(String[] args) {
         String inputFileName1 = "";
-        String inputFileName2 = "";
-        String outputFileName1 = "D1-tree.txt";
-        String outputFileName2 = "D2-tree.txt";
+        String outputFileName1 = "";
 
         if (args.length != 2) {
             printUsage();
@@ -71,11 +69,9 @@ public class NeighborJoin {
         }
         else {
             inputFileName1 = args[0];
-            inputFileName2 = args[1];
-
+            outputFileName1 = args[1];
             // Read in both matrices
             matrix1 = initMatrix(inputFileName1);
-            matrix2 = initMatrix(inputFileName2);
 
             // Create a root node for each matrix
             rootNode1 = new PhyloRoot(matrix1, files);
@@ -84,25 +80,14 @@ public class NeighborJoin {
             // Get the Newick-format tree
             String newick1 = rootNode1.getNewickTree();
 
-            // Create a root node for each matrix
-            rootNode2 = new PhyloRoot(matrix2, files);
-            // Build the tree for this matrix
-            rootNode2.buildTree();
-            // Get the Newick-format tree
-            String newick2 = rootNode2.getNewickTree();
-
             // Write them out to the specified files
             try {
                 FileWriter fw1 = new FileWriter(outputFileName1);
-                FileWriter fw2 = new FileWriter(outputFileName2);
 
                 BufferedWriter writer1 = new BufferedWriter(fw1);
-                BufferedWriter writer2 = new BufferedWriter(fw2);
 
                 writer1.write(newick1);
-                writer2.write(newick2);
                 writer1.close();
-                writer2.close();
             }
             catch (IOException e) {
                 // TODO Auto-generated catch block
@@ -151,7 +136,7 @@ public class NeighborJoin {
      * Print a usage message if they don't provide the correct arguments
      */
     public static void printUsage() {
-        System.out.println("Usage:  NeighborJoin matrix1 matrix2");
+        System.out.println("Usage:  NeighborJoin matrix outputfile");
     }
 
     /**
