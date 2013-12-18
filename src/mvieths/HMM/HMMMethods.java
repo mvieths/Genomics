@@ -3,6 +3,8 @@
  */
 package mvieths.HMM;
 
+import mvieths.HMM.Util.HMMDataSet;
+
 /**
  * @author Michael Vieths
  * 
@@ -15,5 +17,13 @@ package mvieths.HMM;
  */
 public class HMMMethods
 {
+    public static double[][] forward(HMMDataSet data)
+    {
 
+    }
+
+    public static double[][] backward(HMMDataSet data)
+    {
+
+    }
 }
