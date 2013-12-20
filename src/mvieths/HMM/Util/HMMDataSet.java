@@ -3,26 +3,42 @@ package mvieths.HMM.Util;
 import java.util.HashMap;
 
 /**
- * Stores a dataset, which consists of an amino acid sequence and its corresponding states
+ * Stores a dataset, which consists of an amino acid sequence and its corresponding states.  
+ * Provides methods for performing basic Hidden Markov Model algorithms on the dataset.
  * 
  * @author Michael Vieths
  * 
  */
 public class HMMDataSet
 {
-    static String                      sequenceData;
-    static String                      stateData;
-    static String[]                    states;
+    // The possible states for this Markov model
+    static char[]                      states;
+
+    // The possible observations for this Markov model
     static char[]                      observations;
+
+    // The sequence we've been provided.  Must consist entirely of values from 'observations'
+    static String                      sequenceData;
+
+    // The state data we've been provided.  Must consist entirely of values from 'states'.  Must be of equal length to sequenceData.
+    static String                      stateData;
+
+    // The transition matrix contains the probability of changing from one state to another
     static double[][]                  transitionMatrix;
+
+    // The emission matrix contains the probability of changing from one observation to another given a particular state
     static double[][]                  emissionMatrix;
+
+    // The initial probability is the probability used for the first position in the sequence
     static double[]                    initialProbability;
+
     // Reverse mapping from string to integer for looking up a state
-    static HashMap<String, Integer>    stateMap;
+    static HashMap<Character, Integer> stateMap;
+
     // Reverse mapping from character to integer for looking up an observation
     static HashMap<Character, Integer> obsMap;
 
-    public HMMDataSet(String sequence, String stateData, char[] observations, String[] states,
+    public HMMDataSet(String sequence, String stateData, char[] observations, char[] states,
             double[] initialProbability, double[][] transitionMatrix, double[][] emissionMatrix) throws Exception
     {
         if (sequence.length() != stateData.length())
@@ -41,76 +57,76 @@ public class HMMDataSet
         }
     }
 
+    /**
+     * Performs the forward algorithm on the current dataset
+     * 
+     * @return resulting probability matrix
+     */
     public static double[][] forward() {
         double[][] probabilityTable = new double[states.length][sequenceData.length()];
-        int[][] stateTable = new int[states.length][sequenceData.length()];
 
-        // Set the initial probabilities and states
-        char firstChar = sequenceData.charAt(0);
+        // Set the initial probabilities starting at position 0 in the sequenceData
         for (int i = 0; i < states.length; i++) {
-            // Probability is 0 if emission probability is 0 (to avoid Math.log issues)
-            if (emissionMatrix[obsMap.get(firstChar)][i] != 0.0) {
-                probabilityTable[i][0] = Math.log(initialProbability[i] * emissionMatrix[obsMap.get(firstChar)][i]);
-            }
-            else {
-                probabilityTable[i][0] = 0;
-            }
-            stateTable[i][0] = 0;
+            probabilityTable[i][0] = initialProbability[i] * emissionMatrix[i][obsMap.get(sequenceData.charAt(0))];
         }
 
-        // Continue populating the tables at sequenceData.charAt(1)
+        // Continue populating the tables starting at sequenceData.charAt(1)
         for (int seqPos = 1; seqPos < sequenceData.length(); seqPos++) {
-            char thisChar = sequenceData.charAt(seqPos);
-
-            // Iterate through the states
-            for (int state = 0; state < states.length; state++) {
-                // Find the maximum value in the previous entry in the table
-                // Since we're using Math.log() to avoid underruns and will likely have negative probabilities, use negative infinity to start
-                double maxProbability = Double.NEGATIVE_INFINITY;
-                int maxState = -1;
-                for (int k = 0; k < states.length; k++) {
-                    double prob = Double.NEGATIVE_INFINITY;
-                    // Math.log(0) comes out as negative infinity, so only get the log and sum the probability if it's non-zero
-                    if (thisChar == 'N') {
-                        // 'N' stands for any, so provide an equal probability of any state
-                        prob = probabilityTable[k][seqPos - 1] + Math.log(1.0 / 8.0)
-                                + Math.log(emissionMatrix[obsMap.get(thisChar)][k]);
-                    }
-                    else if (emissionMatrix[obsMap.get(thisChar)][k] != 0.0) {
-                        prob = probabilityTable[k][seqPos - 1] + Math.log(transitionMatrix[k][state])
-                                + Math.log(emissionMatrix[obsMap.get(thisChar)][k]);
-                    }
-
-                    if (prob > maxProbability) {
-                        maxProbability = prob;
-                        maxState = k;
-                    }
+            // Calculate state values for each observation in the sequence
+            for (int i = 0; i < states.length; i++) {
+                probabilityTable[i][seqPos] = 0;
+                // Add up the previous probabilities
+                for (int j = 0; j < states.length; j++) {
+                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos - 1] * transitionMatrix[i][j]);
                 }
-
-                probabilityTable[state][seqPos] = maxProbability;
-                stateTable[state][seqPos] = maxState;
+                // Multiply by the emission probability
+                probabilityTable[i][seqPos] *= emissionMatrix[i][obsMap.get(sequenceData.charAt(seqPos))];
             }
         }
         return probabilityTable;
     }
 
+    /**
+     * Performs the backward algorithm on the current dataset
+     * 
+     * @return resulting probability matrix
+     */
     public static double[][] backward() {
-        double[][] resultingProbabilities = new double[states.length][sequenceData.length()];
+        double[][] probabilityTable = new double[states.length][sequenceData.length()];
 
-        return resultingProbabilities;
+        int lastPos = sequenceData.length() - 1;
+        char lastChar = sequenceData.charAt(lastPos);
+        // Set the initial probabilities starting at position 0 in the sequenceData
+        for (int i = 0; i < states.length; i++) {
+            probabilityTable[i][lastPos] = initialProbability[i] * emissionMatrix[i][obsMap.get(lastChar)];
+        }
+
+        // Continue populating the tables starting at sequenceData.charAt(lastPos-1)
+        for (int seqPos = lastPos - 1; seqPos >= 0; seqPos--) {
+            // Calculate state values for each observation in the sequence
+            for (int i = 0; i < states.length; i++) {
+                probabilityTable[i][seqPos] = 0;
+                // Add up the previous probabilities
+                for (int j = 0; j < states.length; j++) {
+                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos + 1] * transitionMatrix[i][j] * emissionMatrix[i][obsMap
+                            .get(sequenceData.charAt(seqPos) + 1)]);
+                }
+            }
+        }
+        return probabilityTable;
     }
 
     /**
      * @return the states
      */
-    public static String[] getStates() {
+    public static char[] getStates() {
         return states;
     }
 
     /**
      * @param states the states to set
      */
-    public static void setStates(String[] states) {
+    public static void setStates(char[] states) {
         HMMDataSet.states = states;
         setStateMap();
     }
@@ -175,7 +191,7 @@ public class HMMDataSet
     /**
      * @return the stateMap
      */
-    public static HashMap<String, Integer> getStateMap() {
+    public static HashMap<Character, Integer> getStateMap() {
         return stateMap;
     }
 
@@ -184,7 +200,7 @@ public class HMMDataSet
      */
     public static void setStateMap() {
         // Create a reverse-mapping of the string state to the corresponding integer
-        stateMap = new HashMap<String, Integer>();
+        stateMap = new HashMap<Character, Integer>();
         for (int i = 0; i < states.length; i++) {
             stateMap.put(states[i], i);
         }
