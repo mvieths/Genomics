@@ -62,12 +62,13 @@ public class HMMDataSet
      * 
      * @return resulting probability matrix
      */
-    public static double[][] forward() {
+    public double[][] forward() {
         double[][] probabilityTable = new double[states.length][sequenceData.length()];
 
         // Set the initial probabilities starting at position 0 in the sequenceData
         for (int i = 0; i < states.length; i++) {
-            probabilityTable[i][0] = initialProbability[i] * emissionMatrix[i][obsMap.get(sequenceData.charAt(0))];
+            probabilityTable[i][0] = Math.log(initialProbability[i])
+                    + Math.log(emissionMatrix[i][obsMap.get(sequenceData.charAt(0))]);
         }
 
         // Continue populating the tables starting at sequenceData.charAt(1)
@@ -77,10 +78,10 @@ public class HMMDataSet
                 probabilityTable[i][seqPos] = 0;
                 // Add up the previous probabilities
                 for (int j = 0; j < states.length; j++) {
-                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos - 1] * transitionMatrix[i][j]);
+                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos - 1] + Math.log(transitionMatrix[i][j]));
                 }
                 // Multiply by the emission probability
-                probabilityTable[i][seqPos] *= emissionMatrix[i][obsMap.get(sequenceData.charAt(seqPos))];
+                probabilityTable[i][seqPos] += Math.log(emissionMatrix[i][obsMap.get(sequenceData.charAt(seqPos))]);
             }
         }
         return probabilityTable;
@@ -91,14 +92,15 @@ public class HMMDataSet
      * 
      * @return resulting probability matrix
      */
-    public static double[][] backward() {
+    public double[][] backward() {
         double[][] probabilityTable = new double[states.length][sequenceData.length()];
 
         int lastPos = sequenceData.length() - 1;
         char lastChar = sequenceData.charAt(lastPos);
         // Set the initial probabilities starting at position 0 in the sequenceData
         for (int i = 0; i < states.length; i++) {
-            probabilityTable[i][lastPos] = initialProbability[i] * emissionMatrix[i][obsMap.get(lastChar)];
+            probabilityTable[i][lastPos] = Math.log(initialProbability[i])
+                    + Math.log(emissionMatrix[i][obsMap.get(lastChar)]);
         }
 
         // Continue populating the tables starting at sequenceData.charAt(lastPos-1)
@@ -108,8 +110,8 @@ public class HMMDataSet
                 probabilityTable[i][seqPos] = 0;
                 // Add up the previous probabilities
                 for (int j = 0; j < states.length; j++) {
-                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos + 1] * transitionMatrix[i][j] * emissionMatrix[i][obsMap
-                            .get(sequenceData.charAt(seqPos) + 1)]);
+                    probabilityTable[i][seqPos] += (probabilityTable[i][seqPos + 1] + Math.log(transitionMatrix[i][j]) + Math
+                            .log(emissionMatrix[i][obsMap.get(sequenceData.charAt(seqPos + 1))]));
                 }
             }
         }
@@ -156,7 +158,7 @@ public class HMMDataSet
     /**
      * @param transitionMatrix the transitionMatrix to set
      */
-    public static void setTransitionMatrix(double[][] transitionMatrix) {
+    public void setTransitionMatrix(double[][] transitionMatrix) {
         HMMDataSet.transitionMatrix = transitionMatrix;
     }
 
@@ -170,7 +172,7 @@ public class HMMDataSet
     /**
      * @param emissionMatrix the emissionMatrix to set
      */
-    public static void setEmissionMatrix(double[][] emissionMatrix) {
+    public void setEmissionMatrix(double[][] emissionMatrix) {
         HMMDataSet.emissionMatrix = emissionMatrix;
     }
 
@@ -184,7 +186,7 @@ public class HMMDataSet
     /**
      * @param initialProbability the initialProbability to set
      */
-    public static void setInitialProbability(double[] initialProbability) {
+    public void setInitialProbability(double[] initialProbability) {
         HMMDataSet.initialProbability = initialProbability;
     }
 
@@ -209,7 +211,7 @@ public class HMMDataSet
     /**
      * @return the obsMap
      */
-    public static HashMap<Character, Integer> getObsMap() {
+    public HashMap<Character, Integer> getObsMap() {
         return obsMap;
     }
 
