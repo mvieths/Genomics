@@ -36,7 +36,7 @@ public class BaumWelch
                                                           { 'e', 'h', '_' };
 
     static double                      evenState          = 1.0 / 3.0;
-    static double                      evenObs            = 1.0 / 20.0;
+    static double                      evenObs            = 1.0 / 23.0;
 
     static double[]                    initialProbability =
                                                           { evenState, evenState, evenState };
@@ -45,9 +45,9 @@ public class BaumWelch
     // Probability of the state changing (in this case double[3][3])
     static double[][]                  transitionMatrix   =
                                                           {
-                                                          { evenState, evenState, evenState },
-                                                          { evenState, evenState, evenState },
-                                                          { evenState, evenState, evenState }
+                                                          { 0.2, 0.7, 0.1 },
+                                                          { 0.7, 0.2, 0.1 },
+                                                          { 0.1, 0.1, 0.2 }
                                                           };
     static double[][]                  currentTransitionMatrix;
 
@@ -86,7 +86,7 @@ public class BaumWelch
         System.out.println("Before training:");
         print();
 
-        int counter = 0;
+        int counter = 6;
         for (HMMDataSet data : trainingData) {
             // Reset the matrices and initial probabilities for the dataset
             data.setInitialProbability(currentProbability);
@@ -276,7 +276,7 @@ public class BaumWelch
         // Print the initial probabilities
         System.out.println("=== Initial Probabilities ===");
         for (int i = 0; i < currentProbability.length; i++) {
-            System.out.printf("[%.4f] ", currentProbability[i]);
+            System.out.printf("[%.4f] ", Math.log(currentProbability[i]));
         }
         System.out.println();
 
@@ -284,7 +284,7 @@ public class BaumWelch
         System.out.println("=== Transition Matrix ===");
         for (int i = 0; i < currentTransitionMatrix.length; i++) {
             for (int j = 0; j < currentTransitionMatrix[0].length; j++) {
-                System.out.printf("[%.4f] ", currentTransitionMatrix[i][j]);
+                System.out.printf("[%.4f] ", Math.log(currentTransitionMatrix[i][j]));
             }
             System.out.println();
         }
@@ -293,7 +293,7 @@ public class BaumWelch
         System.out.println("=== Emission Matrix ===");
         for (int i = 0; i < currentEmissionMatrix.length; i++) {
             for (int j = 0; j < currentEmissionMatrix[0].length; j++) {
-                System.out.printf("[%.4f] ", currentEmissionMatrix[i][j]);
+                System.out.printf("[%.4f] ", Math.log(currentEmissionMatrix[i][j]));
             }
             System.out.println();
         }
