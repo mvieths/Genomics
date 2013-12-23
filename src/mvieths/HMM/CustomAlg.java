@@ -8,21 +8,20 @@ import java.util.regex.Pattern;
 
 import mvieths.HMM.Util.HMMDataSet;
 
-public class CustomAlg {
+public class CustomAlg
+{
     // Observations - An amino acid abbreviation (ARNDCQEGHILKMFPSTWYVBZX)
-    char[]     observations =
-                            { 'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 'L', 'K',
-                            'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V', 'B', 'Z', 'X' };
+    char[]     observations = { 'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V', 'B', 'Z', 'X' };
 
     double[][] transitionMatrix;
     double[][] emissionMatrix;
     double[][] initialProbabilities;
 
     // States - beta sheet (e), helix (h), or loop (_)
-    char[]     states       =
-                            { 'e', 'h', '_' };
+    char[]     states       = { 'e', 'h', '_' };
 
-    public CustomAlg(String trainingFile, String testFile) {
+    public CustomAlg(String trainingFile, String testFile)
+    {
         ArrayList<HMMDataSet> trainingData;
         ArrayList<HMMDataSet> testData;
 
@@ -32,43 +31,53 @@ public class CustomAlg {
         System.out.println("There are " + testData.size() + " sequences in the test data");
 
         trainData(trainingData);
+        testData(testData);
     }
 
-    public void trainData(ArrayList<HMMDataSet> trainingData) {
+    public void trainData(ArrayList<HMMDataSet> trainingData)
+    {
         double[][] transition = new double[states.length][states.length]; // Count how often we move from state to state
         // Initialize these with 0s
-        for (int i = 0; i < transition.length; i++) {
+        for (int i = 0; i < transition.length; i++)
+        {
             Arrays.fill(transition[i], 0.0);
         }
 
         double[][] emission = new double[observations.length][observations.length]; // Count how often we move from observation to observation
         // Initialize these with 0s
-        for (int i = 0; i < emission.length; i++) {
+        for (int i = 0; i < emission.length; i++)
+        {
             Arrays.fill(emission[i], 0.0);
         }
 
         // Initialize these with 0s
         double[][] initial = new double[states.length][observations.length];
-        for (int i = 0; i < initial.length; i++) {
+        for (int i = 0; i < initial.length; i++)
+        {
             Arrays.fill(initial[i], 0.0);
         }
 
         // Iterate through the training dataset, adding up the probabilities
-        for (HMMDataSet data : trainingData) {
+        for (HMMDataSet data : trainingData)
+        {
             data.generateProbabilities();
             double[][] tempTransition = data.getTransitionMatrix();
             double[][] tempEmission = data.getEmissionMatrix();
 
             // Add up the transition probabilities
-            for (int i = 0; i < states.length; i++) {
-                for (int j = 0; j < states.length; j++) {
+            for (int i = 0; i < states.length; i++)
+            {
+                for (int j = 0; j < states.length; j++)
+                {
                     transition[i][j] += tempTransition[i][j];
                 }
             }
 
             // Add up the emission probabilities
-            for (int i = 0; i < observations.length; i++) {
-                for (int j = 0; j < observations.length; j++) {
+            for (int i = 0; i < observations.length; i++)
+            {
+                for (int j = 0; j < observations.length; j++)
+                {
                     emission[i][j] += tempEmission[i][j];
                 }
             }
@@ -80,15 +89,19 @@ public class CustomAlg {
         }
 
         // Divide each transition by the total number of datasets
-        for (int i = 0; i < states.length; i++) {
-            for (int j = 0; j < states.length; j++) {
+        for (int i = 0; i < states.length; i++)
+        {
+            for (int j = 0; j < states.length; j++)
+            {
                 transition[i][j] /= trainingData.size();
             }
         }
 
         // Divide each emission by the total number of datasets
-        for (int i = 0; i < observations.length; i++) {
-            for (int j = 0; j < observations.length; j++) {
+        for (int i = 0; i < observations.length; i++)
+        {
+            for (int j = 0; j < observations.length; j++)
+            {
                 emission[i][j] /= trainingData.size();
             }
         }
@@ -98,9 +111,47 @@ public class CustomAlg {
         initialProbabilities = initial;
     }
 
-    private void testData(ArrayList<HMMDataSet> testData) {
-        for (HMMDataSet data : testData) {
+    /**
+     * Utilize the matrices created by the training data to predict the states of the test data
+     * 
+     * @param testData
+     */
+    private void testData(ArrayList<HMMDataSet> testData)
+    {
+        for (HMMDataSet data : testData)
+        {
+            String sequence = data.getSequenceData();
+            StringBuilder stateData = new StringBuilder();
 
+            // Determine a starting state
+            char firstChar = sequence.charAt(0);
+            double largestVal = 0.0;
+            int largestIndex = 0;
+            for (int i = 0; i < states.length; i++)
+            {
+                if (initialProbabilities[i][data.getObsMap().get(firstChar)] > largestVal)
+                {
+                    largestVal = initialProbabilities[i][data.getObsMap().get(firstChar)];
+                    largestIndex = i;
+                }
+            }
+            char firstState = states[largestIndex];
+            stateData.append(firstState);
+
+            // Continue through the sequence
+            for (int i = 1; i < sequence.length(); i++)
+            {
+                char prevChar = sequence.charAt(i-1);
+                char thisChar = sequence.charAt(i);
+                char prevState = stateData.toString().charAt(i-1);
+
+                double maxProb = 0.0;
+                double maxIndex = 0;
+                for (int j = 0; j < states.length; j++)
+                {
+                    double curProb = transitionMatrix[data.getObsMap().get(prevChar)][data.getObsMap().get(thisChar)] * emissionMatrix[data.getStateMap().get]
+                }
+            }
         }
     }
 
@@ -139,8 +190,7 @@ public class CustomAlg {
                     if (sequenceData.length() > 0)
                     {
                         // Store anything between <> that's in the right format
-                        dataSets.add(new HMMDataSet(sequenceData.toString(), stateData.toString(), observations,
-                                states));
+                        dataSets.add(new HMMDataSet(sequenceData.toString(), stateData.toString(), observations, states));
                         sequenceData = new StringBuilder();
                         stateData = new StringBuilder();
                     }
