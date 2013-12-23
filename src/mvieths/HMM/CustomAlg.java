@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 
 import mvieths.HMM.Util.HMMDataSet;
@@ -32,6 +33,7 @@ public class CustomAlg
 
         trainData(trainingData);
         testData(testData);
+        printData(testData);
     }
 
     public void trainData(ArrayList<HMMDataSet> trainingData)
@@ -63,6 +65,8 @@ public class CustomAlg
             data.generateProbabilities();
             double[][] tempTransition = data.getTransitionMatrix();
             double[][] tempEmission = data.getEmissionMatrix();
+            HashMap<Character, Integer> obsMap = data.getObsMap();
+            HashMap<Character, Integer> stateMap = data.getStateMap();
 
             // Add up the transition probabilities
             for (int i = 0; i < states.length; i++)
@@ -85,7 +89,7 @@ public class CustomAlg
             // Add up the starting states
             char state = data.getStateData().charAt(0);
             char obs = data.getSequenceData().charAt(0);
-            initial[data.getStateMap().get(state)][data.getObsMap().get(obs)]++;
+            initial[stateMap.get(state)][obsMap.get(obs)]++;
         }
 
         // Divide each transition by the total number of datasets
@@ -122,6 +126,8 @@ public class CustomAlg
         {
             String sequence = data.getSequenceData();
             StringBuilder stateData = new StringBuilder();
+            HashMap<Character, Integer> obsMap = data.getObsMap();
+            HashMap<Character, Integer> stateMap = data.getStateMap();
 
             // Determine a starting state
             char firstChar = sequence.charAt(0);
@@ -129,9 +135,9 @@ public class CustomAlg
             int largestIndex = 0;
             for (int i = 0; i < states.length; i++)
             {
-                if (initialProbabilities[i][data.getObsMap().get(firstChar)] > largestVal)
+                if (initialProbabilities[i][obsMap.get(firstChar)] > largestVal)
                 {
-                    largestVal = initialProbabilities[i][data.getObsMap().get(firstChar)];
+                    largestVal = initialProbabilities[i][obsMap.get(firstChar)];
                     largestIndex = i;
                 }
             }
@@ -141,17 +147,37 @@ public class CustomAlg
             // Continue through the sequence
             for (int i = 1; i < sequence.length(); i++)
             {
-                char prevChar = sequence.charAt(i-1);
+                char prevChar = sequence.charAt(i - 1);
                 char thisChar = sequence.charAt(i);
-                char prevState = stateData.toString().charAt(i-1);
+                char prevState = stateData.toString().charAt(i - 1);
 
                 double maxProb = 0.0;
-                double maxIndex = 0;
+                int maxIndex = 0;
+                // Figure out the most probable next state
                 for (int j = 0; j < states.length; j++)
                 {
-                    double curProb = transitionMatrix[data.getObsMap().get(prevChar)][data.getObsMap().get(thisChar)] * emissionMatrix[data.getStateMap().get]
+                    double curProb = transitionMatrix[stateMap.get(prevState)][j] * emissionMatrix[obsMap.get(prevChar)][obsMap.get(thisChar)];
+                    if (curProb > maxProb)
+                    {
+                        maxProb = curProb;
+                        maxIndex = j;
+                    }
                 }
+                stateData.append(states[maxIndex]);
             }
+            data.setStateData(stateData.toString());
+        }
+    }
+
+    private void printData(ArrayList<HMMDataSet> testData)
+    {
+        int counter = 0;
+        for (HMMDataSet data : testData)
+        {
+            System.out.println("Dataset " + counter + ":");
+            System.out.println(data.getSequenceData());
+            System.out.println(data.getStateData());
+            counter++;
         }
     }
 
