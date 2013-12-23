@@ -1,5 +1,6 @@
 package mvieths.HMM.Util;
 
+import java.util.Arrays;
 import java.util.HashMap;
 
 /**
@@ -58,6 +59,21 @@ public class HMMDataSet
             setTransitionMatrix(transitionMatrix);
             setEmissionMatrix(emissionMatrix);
         }
+    }
+
+    public HMMDataSet(String sequence, String stateData, char[] observations, char[] states) throws Exception {
+        if (sequence.length() != stateData.length())
+        {
+            throw new Exception("Sequence and state lengths do not match");
+        }
+        else
+        {
+            setSequenceData(sequence);
+            setStateData(stateData);
+            setObservations(observations);
+            setStates(states);
+        }
+
     }
 
     /**
@@ -177,6 +193,69 @@ public class HMMDataSet
             }
         }
         return probabilityTable;
+    }
+
+    public void generateProbabilities() {
+        double[][] transition = new double[states.length][states.length]; // Count how often we move from state to state
+        // Initialize these with 0s
+        for (int i = 0; i < transition.length; i++) {
+            Arrays.fill(transition[i], 0.0);
+        }
+        int[] totalStates = new int[states.length];
+        // Initialize these with 0s
+        Arrays.fill(totalStates, 0);
+
+        double[][] emission = new double[observations.length][observations.length]; // Count how often we move from observation to observation
+        // Initialize these with 0s
+        for (int i = 0; i < emission.length; i++) {
+            Arrays.fill(emission[i], 0.0);
+        }
+        int[] totalObservations = new int[observations.length];
+        // Initialize these with 0s
+        Arrays.fill(totalObservations, 0);
+
+        // Work through the sequence and state data, adding up the transitions from state to state and observation to observation
+        for (int i = 0; i < sequenceData.length() - 1; i++) {
+            char thisObs = sequenceData.charAt(i);
+            char nextObs = sequenceData.charAt(i + 1);
+            char thisState = stateData.charAt(i);
+            char nextState = stateData.charAt(i + 1);
+
+            // Update the totals
+            totalStates[stateMap.get(thisState)]++;
+            totalObservations[obsMap.get(thisObs)]++;
+
+            // Update the matrices
+            transition[stateMap.get(thisState)][stateMap.get(nextState)]++;
+            emission[obsMap.get(thisObs)][obsMap.get(nextObs)]++;
+        }
+
+        // Iterate through the transition matrix and record the frequency of states
+        for (int i = 0; i < states.length; i++) {
+            for (int j = 0; j < states.length; j++) {
+                if (totalStates[j] == 0) {
+                    transition[i][j] = 0.0;
+                }
+                else {
+                    transition[i][j] = transition[i][j] / totalStates[j];
+                }
+            }
+        }
+
+        // Iterate through the emission matrix and record the frequency of observations
+        for (int i = 0; i < observations.length; i++) {
+            for (int j = 0; j < observations.length; j++) {
+                if (totalObservations[j] == 0) {
+                    emission[i][j] = 0.0;
+                }
+                else {
+                    emission[i][j] = emission[i][j] / totalObservations[j];
+                }
+            }
+        }
+
+        transitionMatrix = transition;
+        emissionMatrix = emission;
     }
 
     /**
